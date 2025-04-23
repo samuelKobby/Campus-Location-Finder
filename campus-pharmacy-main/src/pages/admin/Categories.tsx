@@ -412,6 +412,10 @@ export const PharmacyManagement: React.FC = () => {
                               src={pharmacy.image}
                               alt={pharmacy.name}
                               className="h-10 w-10 rounded-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.onerror = null;
+                              }}
                             />
                           ) : (
                             <Store className="h-10 w-10 text-gray-400" />
@@ -697,7 +701,7 @@ export const PharmacyManagement: React.FC = () => {
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                       <ImageIcon className="w-5 h-5 mr-2" />
-                      Pharmacy Image
+                      Image
                     </h3>
                     <img
                       src={selectedPharmacy.image}

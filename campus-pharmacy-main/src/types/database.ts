@@ -5,7 +5,7 @@ export interface Pharmacy {
   phone: string;
   email: string | null;
   description: string | null;
-  image_url: string | null;
+  image: string | null;
   open_hours: string;
   hours: string;
   latitude: number;
