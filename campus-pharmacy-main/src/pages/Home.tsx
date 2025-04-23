@@ -11,7 +11,7 @@ export const Home: React.FC = () => {
         <div 
           className="absolute inset-0 z-0"
           style={{
-            backgroundImage: 'url("./public/images/campus-illustration.jpg")',
+            backgroundImage: 'url("./images/campus-illustration.jpg")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
