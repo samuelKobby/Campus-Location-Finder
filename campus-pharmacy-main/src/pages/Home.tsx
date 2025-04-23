@@ -11,7 +11,7 @@ export const Home: React.FC = () => {
         <div 
           className="absolute inset-0 z-0"
           style={{
-            backgroundImage: 'url("./public/images/DALL·E 2025-03-22 13.03.18 - A clean and minimalistic 3D illustration of a university campus for a Campus Guide web app. The scene includes a few modern buildings, green trees, an.jpg")',
+            backgroundImage: 'url("./public/images/campus-illustration.jpg")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',

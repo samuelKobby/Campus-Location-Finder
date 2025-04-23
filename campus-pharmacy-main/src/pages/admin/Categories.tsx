@@ -13,7 +13,7 @@ interface NewPharmacy {
   hours: string;
   phone: string;
   available: boolean;
-  image_url: string;
+  image: string;
   latitude: number;
   longitude: number;
   ownerName: string;
@@ -39,7 +39,7 @@ export const PharmacyManagement: React.FC = () => {
     hours: '',
     phone: '',
     available: true,
-    image_url: '',
+    image: '',
     latitude: 0,
     longitude: 0,
     ownerName: '',
@@ -165,7 +165,7 @@ export const PharmacyManagement: React.FC = () => {
 
       setNewPharmacy(prev => ({
         ...prev,
-        image_url: publicUrl
+        image: publicUrl
       }));
     } catch (error: any) {
       setError('Error uploading image: ' + error.message);
@@ -195,7 +195,7 @@ export const PharmacyManagement: React.FC = () => {
         hours: newPharmacy.hours,
         phone: newPharmacy.phone,
         available: newPharmacy.available,
-        image_url: newPharmacy.image_url || null,
+        image: newPharmacy.image || null,
         latitude: newPharmacy.latitude,
         longitude: newPharmacy.longitude,
         
@@ -231,7 +231,7 @@ export const PharmacyManagement: React.FC = () => {
         hours: '',
         phone: '',
         available: true,
-        image_url: '',
+        image: '',
         latitude: 0,
         longitude: 0,
         ownerName: '',
@@ -281,7 +281,7 @@ export const PharmacyManagement: React.FC = () => {
       hours: pharmacy.hours,
       phone: pharmacy.phone,
       available: pharmacy.available,
-      image_url: pharmacy.image_url || '',
+      image: pharmacy.image || '',
       latitude: pharmacy.latitude,
       longitude: pharmacy.longitude,
       ownerName: pharmacy.ownerName,
@@ -407,9 +407,9 @@ export const PharmacyManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          {pharmacy.image_url ? (
+                          {pharmacy.image ? (
                             <img
-                              src={pharmacy.image_url}
+                              src={pharmacy.image}
                               alt={pharmacy.name}
                               className="h-10 w-10 rounded-full object-cover"
                             />
@@ -693,14 +693,14 @@ export const PharmacyManagement: React.FC = () => {
                 </div>
 
                 {/* Image Section */}
-                {selectedPharmacy.image_url && (
+                {selectedPharmacy.image && (
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                       <ImageIcon className="w-5 h-5 mr-2" />
                       Pharmacy Image
                     </h3>
                     <img
-                      src={selectedPharmacy.image_url}
+                      src={selectedPharmacy.image}
                       alt={selectedPharmacy.name}
                       className="w-full h-48 object-cover rounded-lg"
                     />
