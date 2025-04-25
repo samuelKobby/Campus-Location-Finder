@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FaBell, FaUserCircle, FaBars, FaCog, FaSignOutAlt } from 'react-icons/fa';
+import { FaBell, FaUserCircle, FaBars, FaCog, FaSignOutAlt, FaKey } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { usePharmacyAuth } from '../../contexts/PharmacyAuthContext';
 
@@ -134,6 +134,17 @@ export const PharmacyHeader: React.FC<HeaderProps> = ({
                   <FaCog className="w-4 h-4 mr-2" />
                   Settings
                 </Link>
+                <button
+                  onClick={() => {
+                    // Dispatch event to show password modal
+                    window.dispatchEvent(new Event('showPasswordModal'));
+                    setShowProfileMenu(false);
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50/80"
+                >
+                  <FaKey className="w-4 h-4 mr-2" />
+                  Change Password
+                </button>
                 <button
                   onClick={logout}
                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50/80"

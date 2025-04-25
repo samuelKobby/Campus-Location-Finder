@@ -57,14 +57,25 @@ export const PharmacyLogin: React.FC = () => {
       localStorage.setItem('pharmacyId', data.user.pharmacy_id);
       localStorage.setItem('pharmacyName', data.user.pharmacy_name);
       localStorage.setItem('userRole', 'pharmacy');
+      
+      // Check if this is the first login (using the default password pattern)
+      const isDefaultPassword = credentials.password.startsWith('Pharm') && credentials.password.endsWith('123');
+      if (isDefaultPassword) {
+        localStorage.setItem('requirePasswordChange', 'true');
+      }
 
       // Dispatch custom event to notify context of auth change
       window.dispatchEvent(new Event('pharmacyAuthChange'));
 
       toast.success('Login successful!');
       
-      // Navigate to dashboard and prevent going back to login
-      navigate('/pharmacy/dashboard', { replace: true });
+      // If using default password, redirect to password change page
+      if (isDefaultPassword) {
+        navigate('/pharmacy/change-password', { replace: true });
+      } else {
+        // Navigate to dashboard and prevent going back to login
+        navigate('/pharmacy/dashboard', { replace: true });
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Login failed');
@@ -197,7 +208,15 @@ export const PharmacyLogin: React.FC = () => {
         </form>
 
         {/* Security Notice */}
-        <div className="mt-6">
+        <div className="mt-6 space-y-2">
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+            <p className="text-sm text-blue-800">
+              <strong>First time logging in?</strong> Your temporary password is: <span className="font-mono">Pharm[YourPharmacyName]123</span>
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              You will be prompted to change this password after your first login.
+            </p>
+          </div>
           <p className="text-xs text-gray-500 text-center">
             This is a secure area. Only authorized pharmacy staff may access this portal.
           </p>

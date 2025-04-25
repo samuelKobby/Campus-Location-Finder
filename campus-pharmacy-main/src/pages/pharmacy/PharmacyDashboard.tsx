@@ -7,6 +7,7 @@ import { PharmacySidebar } from '../../components/pharmacy/PharmacySidebar';
 import { PharmacyHeader } from '../../components/pharmacy/PharmacyHeader';
 import { PharmacyStats } from '../../components/pharmacy/PharmacyStats';
 import { PharmacyCharts } from '../../components/pharmacy/PharmacyCharts';
+import { PharmacyLayout } from '../../components/pharmacy/PharmacyLayout';
 import { PharmacyHours } from './PharmacyHours';
 import { PharmacyInventory } from './PharmacyInventory';
 import { PharmacyNotifications } from './PharmacyNotifications';
@@ -191,15 +192,16 @@ export const PharmacyDashboard: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen relative overflow-hidden bg-gradient-to-br from-indigo-100 via-rose-50 to-white">
-      {/* Main gradient orbs */}
-      <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-gradient-radial from-violet-400/30 via-fuchsia-400/20 to-transparent rounded-full transform -translate-x-1/2 -translate-y-1/2 blur-3xl mix-blend-overlay pointer-events-none -z-10"></div>
-      <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-gradient-radial from-teal-400/30 via-emerald-400/20 to-transparent rounded-full transform translate-x-1/4 translate-y-1/4 blur-3xl mix-blend-overlay pointer-events-none -z-10"></div>
-      
-      {/* Accent gradients */}
-      <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-gradient-radial from-sky-400/20 via-blue-400/10 to-transparent rounded-full transform -translate-x-1/2 -translate-y-1/2 blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
-      <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-gradient-radial from-amber-400/20 via-orange-400/10 to-transparent rounded-full blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
-      <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-gradient-radial from-rose-400/20 via-pink-400/10 to-transparent rounded-full blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
+    <PharmacyLayout>
+      <div className="flex h-screen relative overflow-hidden bg-gradient-to-br from-indigo-100 via-rose-50 to-white">
+        {/* Main gradient orbs */}
+        <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-gradient-radial from-violet-400/30 via-fuchsia-400/20 to-transparent rounded-full transform -translate-x-1/2 -translate-y-1/2 blur-3xl mix-blend-overlay pointer-events-none -z-10"></div>
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-gradient-radial from-teal-400/30 via-emerald-400/20 to-transparent rounded-full transform translate-x-1/4 translate-y-1/4 blur-3xl mix-blend-overlay pointer-events-none -z-10"></div>
+        
+        {/* Accent gradients */}
+        <div className="absolute top-1/2 left-1/2 w-[500px] h-[500px] bg-gradient-radial from-sky-400/20 via-blue-400/10 to-transparent rounded-full transform -translate-x-1/2 -translate-y-1/2 blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
+        <div className="absolute bottom-1/4 left-1/4 w-[300px] h-[300px] bg-gradient-radial from-amber-400/20 via-orange-400/10 to-transparent rounded-full blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
+        <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] bg-gradient-radial from-rose-400/20 via-pink-400/10 to-transparent rounded-full blur-2xl mix-blend-overlay animate-pulse pointer-events-none -z-10"></div>
       {/* Mobile sidebar backdrop */}
       <div
         className={`fixed inset-0 bg-gray-600 bg-opacity-75 z-20 transition-opacity duration-300 ${
@@ -236,7 +238,8 @@ export const PharmacyDashboard: React.FC = () => {
             </Routes>
           </div>
         </main>
+        </div>
       </div>
-    </div>
+    </PharmacyLayout>
   );
 };

@@ -115,20 +115,21 @@ export const Users: React.FC = () => {
         // Check if user already exists
         const { data: existingUsers } = await supabase
           .from('pharmacy_users')
-          .select('id')
+          .select('id, pharmacy:pharmacies(email)')
           .eq('pharmacy_id', pharmacy.id);
 
         if (existingUsers && existingUsers.length > 0) continue;
 
-        const password = generateRandomPassword();
-        const username = pharmacy.name.toLowerCase().replace(/\s+/g, '_');
+        const password = generateTemporalPassword(pharmacy.name);
+        // Use the actual pharmacy name as entered for the username
+        const username = pharmacy.name;
         
         // Create pharmacy user directly in the database
         const { error: dbError } = await supabase
           .from('pharmacy_users')
           .insert([{
             username: username,
-            password: password, // In a production environment, you should hash this password
+            password: password,
             pharmacy_id: pharmacy.id
           }]);
 
@@ -136,16 +137,41 @@ export const Users: React.FC = () => {
           console.error(`Error creating pharmacy user for ${pharmacy.name}:`, dbError);
           continue;
         }
+
+        // Send email with credentials if email exists
+        const pharmacyEmail = existingUsers?.[0]?.pharmacy?.email;
+        if (pharmacyEmail) {
+          const { error: emailError } = await supabase.functions.invoke('send-pharmacy-credentials', {
+            body: {
+              email: pharmacyEmail,
+              pharmacyName: pharmacy.name,
+              username: username,
+              password: password
+            }
+          });
+
+          if (emailError) {
+            console.error(`Error sending credentials email to ${pharmacy.name}:`, emailError);
+          }
+        }
       }
 
       await fetchUsers();
-      alert('Pharmacy users created successfully! Each pharmacy can now log in using their pharmacy name (lowercase with underscores) and the generated password.');
+      alert('Pharmacy users created successfully! Credentials have been sent to pharmacy email addresses where available.');
     } catch (error: any) {
       setError(error.message);
       console.error('Error creating pharmacy users:', error);
     } finally {
       setCreatingPharmacyUsers(false);
     }
+  };
+
+  const generateTemporalPassword = (pharmacyName: string) => {
+    // Create a temporal password with pattern 'Pharm' + pharmacy name
+    // Remove spaces and special characters from pharmacy name
+    const sanitizedName = pharmacyName.replace(/[^a-zA-Z0-9]/g, '');
+    // Ensure the password has at least one uppercase letter, one lowercase letter, and one number
+    return `Pharm${sanitizedName}123`;
   };
 
   const generateRandomPassword = () => {
@@ -208,7 +234,8 @@ export const Users: React.FC = () => {
       if (editingUser.role === 'Pharmacy') {
         // Update pharmacy user
         const updates = {
-          username: formData.full_name.toLowerCase().replace(/\s+/g, '_'),
+          // Use the actual name as entered for the username
+          username: formData.full_name,
           ...(formData.password ? { password: formData.password } : {})
         };
 

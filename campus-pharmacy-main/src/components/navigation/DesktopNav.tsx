@@ -38,9 +38,14 @@ export const DesktopNav: React.FC = () => {
       <Link to="/contact" className="text-white hover:text-white transition-colors">
         Contact
       </Link>
-      <Link to="/map" className="text-white hover:text-white transition-colors">
-        Interactive Map
-      </Link>
+      <a
+  href="https://earth.google.com/web/@5.65162219,-0.18694534,95.85505974a,152.56713881d,57.25032726y,91.66577259h,60t,0r/data=CgRCAggBMikKJwolCiExZUxIajdmX3V5QWZHQUYxbnZuRkhMWmFPMnhoa25JS0sgAToDCgEwQgIIAEoICIWEhuwEEAE"
+  className="text-white hover:text-white transition-colors"
+  target="_blank"
+  rel="noopener noreferrer"
+>
+  Interactive Map
+</a>
     </nav>
   );
 };
