@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaUserPlus, FaUserEdit, FaTrash, FaSearch, FaTimes, FaStore } from 'react-icons/fa';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { createNotification } from '../../utils/notifications';
 
 interface User {
   id: string;
@@ -24,6 +26,15 @@ interface Pharmacy {
   id: string;
   name: string;
 }
+
+interface NotificationData {
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  pharmacy_id?: string;
+}
+
+
 
 export const Users: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -110,6 +121,8 @@ export const Users: React.FC = () => {
     try {
       setCreatingPharmacyUsers(true);
       setError(null);
+      let createdCount = 0;
+      let errorCount = 0;
 
       for (const pharmacy of pharmacies) {
         // Check if user already exists
@@ -135,32 +148,69 @@ export const Users: React.FC = () => {
 
         if (dbError) {
           console.error(`Error creating pharmacy user for ${pharmacy.name}:`, dbError);
+          errorCount++;
+          
+          // Create error notification for admin
+          await createNotification({
+            title: `Failed to create user for ${pharmacy.name}`,
+            message: `Error: ${dbError.message}`,
+            type: 'error',
+            pharmacy_id: pharmacy.id
+          });
+          
           continue;
         }
+        
+        // Create success notification for admin
+        await createNotification({
+          title: `New pharmacy user created`,
+          message: `Successfully created user account for ${pharmacy.name}`,
+          type: 'success',
+          pharmacy_id: pharmacy.id
+        });
+        
+        createdCount++;
 
         // Send email with credentials if email exists
-        const pharmacyEmail = existingUsers?.[0]?.pharmacy?.email;
-        if (pharmacyEmail) {
-          const { error: emailError } = await supabase.functions.invoke('send-pharmacy-credentials', {
-            body: {
-              email: pharmacyEmail,
-              pharmacyName: pharmacy.name,
-              username: username,
-              password: password
-            }
-          });
+        // const pharmacyEmail = existingUsers?.[0]?.pharmacy?.email;
+        // if (pharmacyEmail) {
+        //   const { error: emailError } = await supabase.functions.invoke('send-pharmacy-credentials', {
+        //     body: {
+        //       email: pharmacyEmail,
+        //       pharmacyName: pharmacy.name,
+        //       username: username,
+        //       password: password
+        //     }
+        //   });
 
-          if (emailError) {
-            console.error(`Error sending credentials email to ${pharmacy.name}:`, emailError);
-          }
-        }
+        //   if (emailError) {
+        //     console.error(`Error sending credentials email to ${pharmacy.name}:`, emailError);
+        //   }
+        // }
       }
 
       await fetchUsers();
-      alert('Pharmacy users created successfully! Credentials have been sent to pharmacy email addresses where available.');
+      // Use the system's toast notification instead of browser alert
+      if (createdCount > 0) {
+        toast.success(`${createdCount} pharmacy users created successfully!`);
+        
+        // Create summary notification for admin
+        if (createdCount > 1) {
+          await createNotification({
+            title: `Bulk pharmacy user creation`,
+            message: `${createdCount} pharmacy users were created successfully${errorCount > 0 ? ` (${errorCount} failed)` : ''}.`,
+            type: 'info'
+          });
+        }
+      } else if (errorCount > 0) {
+        toast.error(`Failed to create pharmacy users. Check notifications for details.`);
+      } else {
+        toast('No new pharmacy users created. All pharmacies already have accounts.');
+      }
     } catch (error: any) {
       setError(error.message);
       console.error('Error creating pharmacy users:', error);
+      toast.error('Error creating pharmacy users');
     } finally {
       setCreatingPharmacyUsers(false);
     }
@@ -233,18 +283,22 @@ export const Users: React.FC = () => {
       
       if (editingUser.role === 'Pharmacy') {
         // Update pharmacy user
-        const updates = {
-          // Use the actual name as entered for the username
-          username: formData.full_name,
-          ...(formData.password ? { password: formData.password } : {})
-        };
+        if (formData.password) {
+          const { error } = await supabase
+            .from('pharmacy_users')
+            .update({ password: formData.password })
+            .eq('id', editingUser.id);
 
-        const { error } = await supabase
-          .from('pharmacy_users')
-          .update(updates)
-          .eq('id', editingUser.id);
+          if (error) throw error;
 
-        if (error) throw error;
+          // Create success notification for pharmacy password update
+          await createNotification({
+            title: `Pharmacy password updated`,
+            message: `Successfully updated password for ${editingUser.full_name}`,
+            type: 'success',
+            pharmacy_id: editingUser.pharmacy_id
+          });
+        }
       } else {
         // Update admin user
         const updates = {
@@ -265,6 +319,22 @@ export const Users: React.FC = () => {
             password: formData.password
           });
           if (pwError) throw pwError;
+
+          // Create success notification for admin password update
+          await createNotification({
+            title: `Admin user password updated`,
+            message: `Successfully updated password for ${editingUser.full_name}`,
+            type: 'success',
+            pharmacy_id: editingUser.pharmacy_id
+          });
+        } else {
+          // Create success notification for admin profile update
+          await createNotification({
+            title: `Admin user updated`,
+            message: `Successfully updated ${editingUser.full_name}`,
+            type: 'success',
+            pharmacy_id: editingUser.pharmacy_id
+          });
         }
       }
 
@@ -276,9 +346,19 @@ export const Users: React.FC = () => {
         password: ''
       });
       await fetchUsers();
+      toast.success('User updated successfully!');
     } catch (error: any) {
       setError(error.message);
       console.error('Error updating user:', error);
+      toast.error(`Error updating user: ${error.message}`);
+      
+      // Create error notification
+      await createNotification({
+        title: `Failed to update user`,
+        message: `Error updating ${editingUser.full_name}: ${error.message}`,
+        type: 'error',
+        pharmacy_id: editingUser.pharmacy_id
+      });
     }
   };
 
@@ -288,22 +368,62 @@ export const Users: React.FC = () => {
     try {
       setError(null);
       
-      // Delete from admin_users table
-      const { error: dbError } = await supabase
-        .from('admin_users')
-        .delete()
-        .eq('id', id);
+      // Find user details before deletion for notification purposes
+      const userToDelete = users.find(user => user.id === id);
+      if (!userToDelete) {
+        throw new Error('User not found');
+      }
+      
+      if (userToDelete.role === 'Pharmacy') {
+        // Delete pharmacy user
+        const { error } = await supabase
+          .from('pharmacy_users')
+          .delete()
+          .eq('id', id);
+          
+        if (error) throw error;
+        
+        // Create notification for pharmacy user deletion
+        await createNotification({
+          title: `Pharmacy user deleted`,
+          message: `Successfully deleted user account for ${userToDelete.full_name}`,
+          type: 'warning',
+          pharmacy_id: userToDelete.pharmacy_id
+        });
+      } else {
+        // Delete from admin_users table
+        const { error: dbError } = await supabase
+          .from('admin_users')
+          .delete()
+          .eq('id', id);
 
-      if (dbError) throw dbError;
+        if (dbError) throw dbError;
 
-      // Delete auth user
-      const { error: authError } = await supabase.auth.admin.deleteUser(id);
-      if (authError) throw authError;
+        // Delete auth user
+        const { error: authError } = await supabase.auth.admin.deleteUser(id);
+        if (authError) throw authError;
+        
+        // Create notification for admin user deletion
+        await createNotification({
+          title: `Admin user deleted`,
+          message: `Successfully deleted user account for ${userToDelete.full_name}`,
+          type: 'warning'
+        });
+      }
 
       await fetchUsers();
+      toast.success('User deleted successfully!');
     } catch (error: any) {
       setError(error.message);
       console.error('Error deleting user:', error);
+      toast.error(`Error deleting user: ${error.message}`);
+      
+      // Create error notification
+      await createNotification({
+        title: `Failed to delete user`,
+        message: `Error: ${error.message}`,
+        type: 'error'
+      });
     }
   };
 

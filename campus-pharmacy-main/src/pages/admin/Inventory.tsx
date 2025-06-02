@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlus, FaEdit, FaTrash, FaSearch } from 'react-icons/fa';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { createNotification } from '../../utils/notifications';
 
 interface Medicine {
   id: number;
@@ -81,18 +83,44 @@ export const Inventory: React.FC = () => {
         stock: parseInt(formData.stock),
       };
 
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from('medicines')
-        .insert([newMedicine]);
+        .insert([newMedicine])
+        .select();
 
       if (error) throw error;
 
+      // Create notification for new medicine added
+      await createNotification({
+        title: 'New Medicine Added',
+        message: `${formData.name} has been added to the inventory with ${formData.stock} units in stock.`,
+        type: 'success'
+      });
+
+      // Check if stock is low and create a warning notification
+      if (parseInt(formData.stock) <= 10) {
+        await createNotification({
+          title: 'Low Stock Warning',
+          message: `${formData.name} has been added with low stock (${formData.stock} units).`,
+          type: 'warning'
+        });
+      }
+
+      toast.success('Medicine added successfully!');
       setShowAddModal(false);
       setFormData({ name: '', category: '', price: '', stock: '' });
       await fetchMedicines();
     } catch (error: any) {
       setError(error.message);
       console.error('Error adding medicine:', error);
+      toast.error('Failed to add medicine');
+
+      // Create error notification
+      await createNotification({
+        title: 'Error Adding Medicine',
+        message: `Failed to add ${formData.name}: ${error.message}`,
+        type: 'error'
+      });
     }
   };
 
@@ -109,6 +137,10 @@ export const Inventory: React.FC = () => {
         stock: parseInt(formData.stock),
       };
 
+      // Get previous stock value to check for stock changes
+      const previousStock = editingMedicine.stock;
+      const newStock = parseInt(formData.stock);
+
       const { error } = await supabase
         .from('medicines')
         .update(updatedMedicine)
@@ -116,12 +148,60 @@ export const Inventory: React.FC = () => {
 
       if (error) throw error;
 
+      // Create notification for medicine update
+      await createNotification({
+        title: 'Medicine Updated',
+        message: `${formData.name} has been updated in the inventory.`,
+        type: 'info'
+      });
+
+      // Check for stock level changes
+      if (previousStock > 10 && newStock <= 10 && newStock > 0) {
+        // Stock has dropped to low levels
+        await createNotification({
+          title: 'Low Stock Alert',
+          message: `${formData.name} stock is now low (${newStock} units).`,
+          type: 'warning'
+        });
+      } else if (previousStock > 0 && newStock <= 0) {
+        // Stock has dropped to zero or below
+        await createNotification({
+          title: 'Out of Stock Alert',
+          message: `${formData.name} is now out of stock.`,
+          type: 'error'
+        });
+      } else if (previousStock <= 0 && newStock > 0) {
+        // Stock has been replenished from zero
+        await createNotification({
+          title: 'Stock Replenished',
+          message: `${formData.name} is back in stock (${newStock} units).`,
+          type: 'success'
+        });
+      } else if (previousStock <= 10 && newStock > 10) {
+        // Stock has been replenished from low levels
+        await createNotification({
+          title: 'Stock Replenished',
+          message: `${formData.name} stock has been replenished to ${newStock} units.`,
+          type: 'success'
+        });
+      }
+
+      toast.success('Medicine updated successfully!');
+      setShowAddModal(false);
       setEditingMedicine(null);
       setFormData({ name: '', category: '', price: '', stock: '' });
       await fetchMedicines();
     } catch (error: any) {
       setError(error.message);
       console.error('Error updating medicine:', error);
+      toast.error('Failed to update medicine');
+
+      // Create error notification
+      await createNotification({
+        title: 'Error Updating Medicine',
+        message: `Failed to update ${formData.name}: ${error.message}`,
+        type: 'error'
+      });
     }
   };
 
@@ -130,6 +210,16 @@ export const Inventory: React.FC = () => {
 
     try {
       setError(null);
+      
+      // Get medicine details before deletion
+      const { data: medicineData, error: fetchError } = await supabase
+        .from('medicines')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      
       const { error } = await supabase
         .from('medicines')
         .delete()
@@ -137,10 +227,26 @@ export const Inventory: React.FC = () => {
 
       if (error) throw error;
 
+      // Create notification for medicine deletion
+      await createNotification({
+        title: 'Medicine Deleted',
+        message: `${medicineData.name} has been removed from the inventory.`,
+        type: 'warning'
+      });
+
+      toast.success('Medicine deleted successfully!');
       await fetchMedicines();
     } catch (error: any) {
       setError(error.message);
       console.error('Error deleting medicine:', error);
+      toast.error('Failed to delete medicine');
+
+      // Create error notification
+      await createNotification({
+        title: 'Error Deleting Medicine',
+        message: `Failed to delete medicine: ${error.message}`,
+        type: 'error'
+      });
     }
   };
 

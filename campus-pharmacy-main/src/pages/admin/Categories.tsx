@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import type { Pharmacy, ActivityLog, PharmacyStatus } from '../../types/database';
 import { toast } from 'react-hot-toast';
 import { useModal } from '../../contexts/ModalContext';
+import { createNotification } from '../../utils/notifications';
 
 interface NewPharmacy {
   id?: string;
@@ -99,10 +100,22 @@ export const PharmacyManagement: React.FC = () => {
   const updatePharmacyStatus = async (pharmacyId: string) => {
     try {
       setError(null);
+      
+      // Get pharmacy details before update
+      const { data: pharmacyData, error: fetchError } = await supabase
+        .from('pharmacies')
+        .select('*')
+        .eq('id', pharmacyId)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      const newStatus = !pharmacyData.available;
+      
       const { error } = await supabase
         .from('pharmacies')
         .update({ 
-          available: true
+          available: newStatus
         })
         .eq('id', pharmacyId);
 
@@ -112,13 +125,35 @@ export const PharmacyManagement: React.FC = () => {
         action_type: 'pharmacy_updated',
         entity_type: 'pharmacy',
         entity_id: pharmacyId,
-        details: { timestamp: new Date().toISOString() }
+        details: { 
+          timestamp: new Date().toISOString(),
+          status_changed: true,
+          previous_status: pharmacyData.available,
+          new_status: newStatus
+        }
+      });
+      
+      // Create notification for pharmacy status update
+      await createNotification({
+        title: `Pharmacy Status Updated`,
+        message: `${pharmacyData.name} is now ${newStatus ? 'active' : 'inactive'}.`,
+        type: newStatus ? 'success' : 'warning',
+        pharmacy_id: pharmacyId
       });
 
+      toast.success(`Pharmacy status updated successfully!`);
       await fetchPharmacies();
     } catch (error: any) {
       setError(error.message);
       console.error('Error updating pharmacy:', error);
+      toast.error('Failed to update pharmacy status');
+      
+      // Create error notification
+      await createNotification({
+        title: 'Error Updating Pharmacy',
+        message: `Failed to update pharmacy status: ${error.message}`,
+        type: 'error'
+      });
     }
   };
 
@@ -179,49 +214,103 @@ export const PharmacyManagement: React.FC = () => {
       setError(null);
       setLoading(true);
 
-      // Basic validation
-      if (!newPharmacy.name || !newPharmacy.phone || !newPharmacy.hours) {
+      // Validate required fields
+      if (!newPharmacy.name || !newPharmacy.location || !newPharmacy.hours || !newPharmacy.phone) {
         throw new Error('Please fill in all required fields');
       }
 
-      if (!newPharmacy.location && (!newPharmacy.latitude || !newPharmacy.longitude)) {
-        throw new Error('Please provide location details');
-      }
-
-      // Format the data to match the table schema
-      const pharmacyData = {
-        name: newPharmacy.name,
-        location: newPharmacy.location,
-        hours: newPharmacy.hours,
-        phone: newPharmacy.phone,
-        available: newPharmacy.available,
-        image: newPharmacy.image || null,
-        latitude: newPharmacy.latitude,
-        longitude: newPharmacy.longitude,
-        
-      };
-
-      console.log('Attempting to insert pharmacy with data:', JSON.stringify(pharmacyData, null, 2));
-
+      // Check if editing or adding new
       if (editPharmacy) {
+        // Get pharmacy details before update
+        const { data: oldPharmacyData, error: fetchError } = await supabase
+          .from('pharmacies')
+          .select('*')
+          .eq('id', editPharmacy)
+          .single();
+          
+        if (fetchError) throw fetchError;
+        
         // Update existing pharmacy
         const { error } = await supabase
           .from('pharmacies')
-          .update(pharmacyData)
+          .update({
+            name: newPharmacy.name,
+            location: newPharmacy.location,
+            hours: newPharmacy.hours,
+            phone: newPharmacy.phone,
+            available: newPharmacy.available,
+            image: newPharmacy.image || null,
+            latitude: newPharmacy.latitude || null,
+            longitude: newPharmacy.longitude || null
+          })
           .eq('id', editPharmacy);
 
         if (error) throw error;
-        toast.success('Pharmacy updated successfully');
+
+        // Add activity log for update
+        await supabase.from('activity_logs').insert({
+          action_type: 'pharmacy_updated',
+          entity_type: 'pharmacy',
+          entity_id: editPharmacy,
+          details: { timestamp: new Date().toISOString() }
+        });
+        
+        // Create notification for pharmacy update
+        await createNotification({
+          title: 'Pharmacy Updated',
+          message: `${newPharmacy.name} pharmacy information has been updated.`,
+          type: 'info',
+          pharmacy_id: editPharmacy
+        });
+        
+        // Check if availability status changed
+        if (oldPharmacyData.available !== newPharmacy.available) {
+          await createNotification({
+            title: 'Pharmacy Status Changed',
+            message: `${newPharmacy.name} is now ${newPharmacy.available ? 'active' : 'inactive'}.`,
+            type: newPharmacy.available ? 'success' : 'warning',
+            pharmacy_id: editPharmacy
+          });
+        }
+
+        toast.success('Pharmacy updated successfully!');
       } else {
         // Add new pharmacy
         const { data, error } = await supabase
           .from('pharmacies')
-          .insert(pharmacyData)
-          .select()
-          .single();
+          .insert({
+            name: newPharmacy.name,
+            location: newPharmacy.location,
+            hours: newPharmacy.hours,
+            phone: newPharmacy.phone,
+            available: newPharmacy.available,
+            image: newPharmacy.image || null,
+            latitude: newPharmacy.latitude || null,
+            longitude: newPharmacy.longitude || null
+          })
+          .select();
 
         if (error) throw error;
-        toast.success('Pharmacy added successfully');
+
+        // Add activity log for new pharmacy
+        if (data && data[0]) {
+          await supabase.from('activity_logs').insert({
+            action_type: 'pharmacy_created',
+            entity_type: 'pharmacy',
+            entity_id: data[0].id,
+            details: { timestamp: new Date().toISOString() }
+          });
+          
+          // Create notification for new pharmacy
+          await createNotification({
+            title: 'New Pharmacy Added',
+            message: `${newPharmacy.name} has been added to the system.`,
+            type: 'success',
+            pharmacy_id: data[0].id
+          });
+        }
+
+        toast.success('Pharmacy added successfully!');
       }
 
       // Reset form and close modal
@@ -238,16 +327,21 @@ export const PharmacyManagement: React.FC = () => {
         email: '',
         licenseNumber: ''
       });
-      setEditPharmacy(null);
       setPreviewImage(null);
       setShowAddModal(false);
-
-      // Refresh the pharmacy list
+      setEditPharmacy(null);
       await fetchPharmacies();
-
     } catch (error: any) {
       setError(error.message);
       console.error('Error adding/updating pharmacy:', error);
+      toast.error(error.message);
+      
+      // Create error notification
+      await createNotification({
+        title: 'Error Managing Pharmacy',
+        message: `Failed to ${editPharmacy ? 'update' : 'add'} pharmacy: ${error.message}`,
+        type: 'error'
+      });
     } finally {
       setLoading(false);
     }
@@ -255,21 +349,49 @@ export const PharmacyManagement: React.FC = () => {
 
   const handleDeletePharmacy = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this pharmacy?')) return;
-    
+
     try {
+      setError(null);
+      setLoading(true);
+      
+      // Get pharmacy details before deletion
+      const { data: pharmacyData, error: fetchError } = await supabase
+        .from('pharmacies')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('pharmacies')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Create notification for pharmacy deletion
+      await createNotification({
+        title: 'Pharmacy Deleted',
+        message: `${pharmacyData.name} has been removed from the system.`,
+        type: 'warning'
+      });
 
-      // Refresh the list
+      toast.success('Pharmacy deleted successfully!');
       await fetchPharmacies();
-      toast.success('Pharmacy deleted successfully');
     } catch (error: any) {
+      setError(error.message);
       console.error('Error deleting pharmacy:', error);
-      toast.error('Error deleting pharmacy: ' + error.message);
+      toast.error(error.message);
+      
+      // Create error notification
+      await createNotification({
+        title: 'Error Deleting Pharmacy',
+        message: `Failed to delete pharmacy: ${error.message}`,
+        type: 'error'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
